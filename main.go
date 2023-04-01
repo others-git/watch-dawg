@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/json"
 	"io/ioutil"
+	"errors"
 
 	git "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
@@ -21,6 +22,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
 )
 
@@ -34,8 +36,8 @@ type Settings struct {
 	ProjectPath  string `json:"project_path"`
 	GitRepoURL   string `json:"git_repo_url"`
 	GitUsername  string `json:"git_username"`
-	GitPassword  string `json:"git_password"`
 }
+
 type logWindowWidget struct {
 	*widget.Entry
 }
@@ -65,9 +67,6 @@ func (lw *logWriter) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-
-////////////////////////// GOOD STUFF //////////////////////////
-
 func loadSettings() (*Settings, error) {
 	data, err := ioutil.ReadFile(settingsFile)
 	if err != nil {
@@ -91,7 +90,6 @@ func saveSettings(settings *Settings) error {
 
 	return ioutil.WriteFile(settingsFile, data, 0644)
 }
-
 
 func promptForConfig() (string, string, string, string) {
 	promptProjectPath := promptui.Prompt{
@@ -125,7 +123,29 @@ func promptForConfig() (string, string, string, string) {
 	return projectPath, gitRepoURL, gitUsername, gitPassword
 }
 
-func watchAbletonProject(ctx context.Context, projectPath, gitRepoURL, gitUsername, gitPassword string) {
+func showError(w fyne.Window, message string) {
+	dialog.ShowError(errors.New(message), w)
+}
+
+func pushChanges(r *git.Repository, auth *http.BasicAuth) error {
+	log.Println(auth)
+	err := r.Push(&git.PushOptions{
+		RemoteName: "origin",
+		RefSpecs: []config.RefSpec{
+			config.RefSpec("refs/heads/*:refs/heads/*"),
+		},
+		Auth: auth,
+	})
+
+	if err != nil {
+		return err
+	}
+
+	log.Println("Pushed changes to remote repository")
+	return nil
+}
+
+func watchAbletonProject(ctx context.Context, projectPath, gitRepoURL, gitUsername, gitPassword string, w fyne.Window) {
 
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -135,6 +155,11 @@ func watchAbletonProject(ctx context.Context, projectPath, gitRepoURL, gitUserna
 	defer watcher.Close()
 
 	done := make(chan bool)
+
+	auth := &http.BasicAuth{
+		Username: gitUsername,
+		Password: gitPassword,
+	}
 
 	go func() {
 		for {
@@ -188,20 +213,9 @@ func watchAbletonProject(ctx context.Context, projectPath, gitRepoURL, gitUserna
 							ticker.Stop()
 							return
 						case <-ticker.C:
-							err := r.Push(&git.PushOptions{
-								RemoteName: "origin",
-								RefSpecs: []config.RefSpec{
-									config.RefSpec("refs/heads/*:refs/heads/*"),
-								},
-								Auth: &http.BasicAuth{
-									Username: gitUsername,
-									Password: gitPassword,
-								},
-							})
+							err := pushChanges(r, auth)
 							if err != nil {
 								log.Println("Failed to push changes:", err)
-							} else {
-								log.Println("Pushed changes to remote repository")
 							}
 						}
 					}
@@ -209,6 +223,7 @@ func watchAbletonProject(ctx context.Context, projectPath, gitRepoURL, gitUserna
 
 			case err := <-watcher.Errors:
 				log.Println("Error:", err)
+				showError(w, fmt.Sprintf("Error watching project directory: %s", err.Error()))
 			}
 		}
 	}()
@@ -236,7 +251,6 @@ func createGUI() (context.Context, context.CancelFunc) {
 		projectPathEntry.SetText(settings.ProjectPath)
 		gitRepoURLEntry.SetText(settings.GitRepoURL)
 		gitUsernameEntry.SetText(settings.GitUsername)
-		gitPasswordEntry.SetText(settings.GitPassword)
 	}
 
 
@@ -251,7 +265,6 @@ func createGUI() (context.Context, context.CancelFunc) {
 			ProjectPath:  projectPath,
 			GitRepoURL:   gitRepoURL,
 			GitUsername:  gitUsername,
-			GitPassword:  gitPassword,
 		}
 		err := saveSettings(settings)
 		if err != nil {
@@ -270,11 +283,12 @@ func createGUI() (context.Context, context.CancelFunc) {
 			})
 			if err != nil {
 				log.Println("Failed to clone repository:", err)
+				showError(w, fmt.Sprintf("Failed to clone repository: %s", err.Error()))
 				return
 			}
 		}
 
-		go watchAbletonProject(ctx, projectPath, gitRepoURL, gitUsername, gitPassword)
+		go watchAbletonProject(ctx, projectPath, gitRepoURL, gitUsername, gitPassword, w)
 	})
 
 	stopButton := widget.NewButton("Stop", func() {
@@ -292,16 +306,13 @@ func createGUI() (context.Context, context.CancelFunc) {
 			return
 		}
 
-		err = r.Push(&git.PushOptions{
-			RemoteName: "origin",
-			RefSpecs: []config.RefSpec{
-				config.RefSpec("refs/heads/*:refs/heads/*"),
-			},
-			Auth: &http.BasicAuth{
-				Username: gitUsername,
-				Password: gitPassword,
-			},
-		})
+		auth := &http.BasicAuth{
+			Username: gitUsername,
+			Password: gitPassword,
+		}
+
+		err = pushChanges(r, auth)
+
 		if err != nil {
 			log.Println("Failed to push changes:", err)
 			return

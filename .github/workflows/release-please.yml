@@ -17,3 +17,4 @@ jobs:
         with:
           release-type: go
           package-name: release-please-action
+          token: ${{ secrets.WRITE_DEPLOY_KEY }}

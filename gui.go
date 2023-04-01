@@ -150,7 +150,7 @@ func createGUI() (context.Context, context.CancelFunc) {
 			{Text: "Ableton Project Path", Widget: projectPathEntry},
 			{Text: "Git Repository URL", Widget: gitRepoURLEntry},
 			{Text: "Git Username", Widget: gitUsernameEntry},
-			{Text: "Git Password", Widget: gitPasswordEntry},
+			{Text: "Git Token", Widget: gitPasswordEntry},
 		},
 	}
 

@@ -4,14 +4,13 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
 	git "github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
+	"github.com/go-git/go-git/v5/config"
 	"github.com/fsnotify/fsnotify"
 	"github.com/manifoldco/promptui"
 )
@@ -105,8 +104,8 @@ func watchAbletonProject(projectPath, gitRepoURL, gitUsername, gitPassword strin
 						<-ticker.C
 						err := r.Push(&git.PushOptions{
 							RemoteName: "origin",
-							RefSpecs: []plumbing.RefSpec{
-								"refs/heads/*:refs/heads/*",
+							RefSpecs: []config.RefSpec{
+								config.RefSpec("refs/heads/*:refs/heads/*"),
 							},
 							Auth: &http.BasicAuth{
 								Username: gitUsername,
@@ -127,8 +126,15 @@ func watchAbletonProject(projectPath, gitRepoURL, gitUsername, gitPassword strin
 		}
 	}()
 
+	err = watcher.Add(projectPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	<-done
+}
+
 func main() {
-	projectPath, gitRepoURL, gitUsername, gitPassword := promptForConfig()
+	projectPath, gitRepoURL, gitUsername, gitPassword := createGUI()
 
 	// Clone the Git repository if it doesn't exist locally
 	if _, err := os.Stat(projectPath); os.IsNotExist(err) {

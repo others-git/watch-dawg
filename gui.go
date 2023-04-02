@@ -1,12 +1,11 @@
 package main
 
 import (
-	"fmt"
-	"os"
-	"io"
-	"log"
 	"context"
 	"errors"
+	"io"
+	"log"
+	"os"
 
 	git "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
@@ -16,7 +15,6 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
-
 )
 
 // Define other GUI components like logWindowWidget, logWriter, etc.
@@ -58,25 +56,31 @@ func showError(w fyne.Window, message string) {
 	dialog.ShowError(errors.New(message), w)
 }
 
-
 func createGUI() (context.Context, context.CancelFunc) {
 	guiApp := app.New()
 	w := guiApp.NewWindow("Ableton Git Backup")
 
+	// New "main" tab
+	statusLabel := widget.NewLabel("Status: Not running")
+	mainTab := container.NewVBox(
+		widget.NewLabel("Ableton Git Sync"),
+		statusLabel,
+	)
+
+	// Settings tab
+	settings, err := loadSettings()
 	projectPathEntry := widget.NewEntry()
 	gitRepoURLEntry := widget.NewEntry()
 	gitUsernameEntry := widget.NewEntry()
 	gitPasswordEntry := widget.NewPasswordEntry()
 
-	ctx, cancel := context.WithCancel(context.Background())
-
-	settings, err := loadSettings()
 	if err == nil {
 		projectPathEntry.SetText(settings.ProjectPath)
 		gitRepoURLEntry.SetText(settings.GitRepoURL)
 		gitUsernameEntry.SetText(settings.GitUsername)
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
 
 	startButton := widget.NewButton("Start", func() {
 		projectPath := projectPathEntry.Text
@@ -86,9 +90,10 @@ func createGUI() (context.Context, context.CancelFunc) {
 
 		// Save settings
 		settings := &Settings{
-			ProjectPath:  projectPath,
-			GitRepoURL:   gitRepoURL,
-			GitUsername:  gitUsername,
+			ProjectPath: projectPath,
+			GitRepoURL:  gitRepoURL,
+			GitUsername: gitUsername,
+			GitPassword: gitPassword,
 		}
 		err := saveSettings(settings)
 		if err != nil {
@@ -96,27 +101,22 @@ func createGUI() (context.Context, context.CancelFunc) {
 			return
 		}
 
-		// Clone the Git repository if it doesn't exist locally
-		if _, err := os.Stat(projectPath); os.IsNotExist(err) {
-			_, err := git.PlainClone(projectPath, false, &git.CloneOptions{
-				URL: gitRepoURL,
-				Auth: &http.BasicAuth{
-					Username: gitUsername,
-					Password: gitPassword,
-				},
-			})
-			if err != nil {
-				log.Println("Failed to clone repository:", err)
-				showError(w, fmt.Sprintf("Failed to clone repository: %s", err.Error()))
-				return
+		go func() {
+			err := settings.Validate()
+			if err == nil {
+				statusLabel.SetText("Status: Running")
+				watchAbletonProject(ctx, settings.ProjectPath, settings.GitRepoURL, settings.GitUsername, settings.GitPassword, w)
+			} else {
+				showError(w, "Please complete all settings fields.")
 			}
-		}
+		}()
 
 		go watchAbletonProject(ctx, projectPath, gitRepoURL, gitUsername, gitPassword, w)
 	})
 
 	stopButton := widget.NewButton("Stop", func() {
 		cancel()
+		statusLabel.SetText("Status: Not running")
 	})
 
 	pushButton := widget.NewButton("Push", func() {
@@ -157,28 +157,22 @@ func createGUI() (context.Context, context.CancelFunc) {
 	buttons := container.NewHBox(startButton, stopButton, pushButton)
 
 	// Create the tab container
-	tabs := createTabContainer(form)
-	
-	w.SetContent(container.NewVBox(tabs, buttons))
-	w.Resize(fyne.NewSize(600, 200))
-	w.ShowAndRun()
-
-	return ctx, cancel
-}
-
-func createTabContainer(form *widget.Form) *container.AppTabs {
 	// Create a log window
 	logWindow := newLogWindowWidget()
 
 	// Capture log output and display it in the log window
 	log.SetOutput(io.MultiWriter(os.Stderr, &logWriter{logWindow}))
 
-	// Create the tab container with the form and the log window
 	tabs := container.NewAppTabs(
-		container.NewTabItem("Configuration", form),
+		container.NewTabItem("Main", mainTab),
+		container.NewTabItem("Settings", form),
 		container.NewTabItem("Log", logWindow),
 	)
 	tabs.SetTabLocation(container.TabLocationLeading)
 
-	return tabs
+	w.SetContent(container.NewVBox(tabs, buttons))
+	w.Resize(fyne.NewSize(600, 200))
+	w.ShowAndRun()
+
+	return ctx, cancel
 }

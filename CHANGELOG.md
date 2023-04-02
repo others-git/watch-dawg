@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/others-git/watch-dawg/compare/v0.1.0...v0.1.1) (2023-04-02)
+
+
+### Bug Fixes
+
+* match supported go ver by builder ([a095312](https://github.com/others-git/watch-dawg/commit/a095312a54be2b4250a46f52e6f8c211f35896c0))
+
 ## [0.1.0](https://github.com/others-git/watch-dawg/compare/v0.0.3...v0.1.0) (2023-04-02)
 
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/others-git/watch-dawg/compare/v0.1.1...v0.1.2) (2023-04-02)
+
+
+### Bug Fixes
+
+* only build windows ([4451c82](https://github.com/others-git/watch-dawg/commit/4451c827176ca7f03f6c759df9c357d8271f042f))
+
 ## [0.1.1](https://github.com/others-git/watch-dawg/compare/v0.1.0...v0.1.1) (2023-04-02)
 
 

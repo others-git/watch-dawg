@@ -8,11 +8,24 @@ before:
     - go generate ./...
 builds:
   - env:
-      - CGO_ENABLED=0
+      - >-
+        {{- if eq .Os "windows" }}
+          {{- if eq .Arch "amd64" }}CGO_ENABLED=1{{- end }}
+        {{- else }}
+          {{- if eq .Arch "amd64" }}CGO_ENABLED=0{{- end }}
+        {{- end }}
+      - >-
+        {{- if eq .Os "darwin" }}
+          {{- if eq .Arch "amd64"}}CC=o64-clang{{- end }}
+          {{- if eq .Arch "arm64"}}CC=aarch64-apple-darwin20.2-clang{{- end }}
+        {{- end }}
+        {{- if eq .Os "windows" }}
+          {{- if eq .Arch "amd64" }}CC=x86_64-w64-mingw32-gcc{{- end }}
+        {{- end }}
     goos:
-      - linux
+      #- linux
       - windows
-      - darwin
+      #- darwin
     goarch:
       - amd64
 

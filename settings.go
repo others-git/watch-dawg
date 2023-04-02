@@ -2,16 +2,39 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 )
 
 const settingsFile = "settings.json"
 
 type Settings struct {
-	ProjectPath  string `json:"project_path"`
-	GitRepoURL   string `json:"git_repo_url"`
-	GitUsername  string `json:"git_username"`
-	GitPassword  string `json:"git_password"`
+	ProjectPath string `json:"project_path"`
+	GitRepoURL  string `json:"git_repo_url"`
+	GitUsername string `json:"git_username"`
+	GitPassword string `json:"git_password"`
+}
+
+type SettingsWithoutPassword struct {
+	ProjectPath string `json:"project_path"`
+	GitRepoURL  string `json:"git_repo_url"`
+	GitUsername string `json:"git_username"`
+}
+
+func (s *Settings) Validate() error {
+	if s.ProjectPath == "" {
+		return errors.New("project path is required")
+	}
+	if s.GitRepoURL == "" {
+		return errors.New("Git repository URL is required")
+	}
+	if s.GitUsername == "" {
+		return errors.New("Git username is required")
+	}
+	if s.GitPassword == "" {
+		return errors.New("Git password is required")
+	}
+	return nil
 }
 
 func loadSettings() (*Settings, error) {
@@ -30,12 +53,23 @@ func loadSettings() (*Settings, error) {
 }
 
 func saveSettings(settings *Settings) error {
-	data, err := json.MarshalIndent(settings, "", "  ")
+	settingsWithoutPassword := &SettingsWithoutPassword{
+		ProjectPath: settings.ProjectPath,
+		GitRepoURL:  settings.GitRepoURL,
+		GitUsername: settings.GitUsername,
+	}
+
+	data, err := json.MarshalIndent(settingsWithoutPassword, "", "  ")
 	if err != nil {
 		return err
 	}
 
-	return ioutil.WriteFile(settingsFile, data, 0644)
+	err = ioutil.WriteFile(settingsFile, data, 0644)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 /*

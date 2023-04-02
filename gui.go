@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -101,13 +102,21 @@ func createGUI() (context.Context, context.CancelFunc) {
 			return
 		}
 
+		// Check if the Git repository exists locally and clone it if it doesn't
+		err = checkoutRepo(projectPath, gitRepoURL, gitUsername, gitPassword)
+		if err != nil {
+			log.Println("Failed to clone repository:", err)
+			showError(w, fmt.Sprintf("Failed to clone repository: %s", err.Error()))
+			return
+		}
+
 		go func() {
 			err := settings.Validate()
 			if err == nil {
 				statusLabel.SetText("Status: Running")
 				watchAbletonProject(ctx, settings.ProjectPath, settings.GitRepoURL, settings.GitUsername, settings.GitPassword, w)
 			} else {
-				showError(w, "Please complete all settings fields.")
+				showError(w, fmt.Sprintf("Please complete all settings fields: %s", err.Error()))
 			}
 		}()
 

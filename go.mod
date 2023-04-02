@@ -1,12 +1,11 @@
 module watch-dawg
 
-go 1.20
+go 1.18
 
 require (
 	fyne.io/fyne/v2 v2.3.3
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/go-git/go-git/v5 v5.6.1
-	github.com/manifoldco/promptui v0.9.0
 )
 
 require (
@@ -14,8 +13,6 @@ require (
 	github.com/Microsoft/go-winio v0.6.0 // indirect
 	github.com/ProtonMail/go-crypto v0.0.0-20230331115716-d34776aa93ec // indirect
 	github.com/acomagu/bufpipe v1.0.4 // indirect
-	github.com/benoitkugler/textlayout v0.3.0 // indirect
-	github.com/chzyer/readline v1.5.1 // indirect
 	github.com/cloudflare/circl v1.3.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
